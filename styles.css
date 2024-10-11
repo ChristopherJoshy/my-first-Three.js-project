@@ -1,10 +1,22 @@
-html, body {
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
+body { margin: 0; overflow: hidden; }
+canvas { display: block; }
+.control-button {
+    position: absolute;
+    bottom: 20px;
+    width: 60px;
+    height: 60px;
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    font-size: 30px;
+    border: none;
+    border-radius: 30px;
+    text-align: center;
+    line-height: 60px;
+    user-select: none;
 }
-
-#game-container {
-    width: 100vw;
-    height: 100vh;
-}
+#forward { left: 50%; transform: translateX(-50%); }
+#backward { left: 50%; transform: translateX(-50%); bottom: 90px; }
+#left { left: 20px; }
+#right { right: 20px; }
+#score { position: absolute; top: 20px; left: 20px; color: white; font-size: 24px; }
+#health { position: absolute; top: 50px; left: 20px; color: white; font-size: 24px; }
