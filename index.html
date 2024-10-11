@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Enhanced Infinite 3D Car World</title>
+    <title>CJ's 3D Car World</title>
     <style>
         body { margin: 0; overflow: hidden; }
         canvas { display: block; }
@@ -39,15 +39,18 @@
     <button id="right" class="control-button">→</button>
 
     <script>
-        let scene, camera, renderer, car, particles, particleSystem, dustParticles, dustParticleSystem, headlights, chunks = {};
-        const carSpeed = 0.3, maxSpeed = 1.0, turnSpeed = 0.05;
+        let scene, camera, renderer, car, headlights, chunks = {};
+        let carSpeed = 0, maxSpeed = 2, turnSpeed = 0.03;
         let moveForward = false, moveBackward = false, turnLeft = false, turnRight = false;
-        let currentSpeed = 0, acceleration = 0.05, deceleration = 0.1, chunkSize = 200;
-        let score = 0, health = 100, timeElapsed = 0;
+        let acceleration = 0.05, deceleration = 0.08, friction = 0.02, chunkSize = 200;
+        let score = 0, health = 100;
+        let lastRenderTime = 0;
 
         function init() {
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x87CEEB); // Sky color
+            scene.background = new THREE.Color(0x87CEEB); 
+
+            
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             camera.position.set(0, 5, 10);
 
@@ -55,247 +58,172 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
 
+            
             const ambientLight = new THREE.AmbientLight(0x404040);
             scene.add(ambientLight);
             const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
             directionalLight.position.set(5, 10, 7.5);
             scene.add(directionalLight);
 
+            
             car = createCar();
             car.position.set(0, 1, 0);
             scene.add(car);
 
-            // Create particle system for motion trail
-            particles = new THREE.Geometry();
-            const particleMaterial = new THREE.PointsMaterial({ color: 0xaaaaaa, size: 0.5, transparent: true, opacity: 0.8 });
-            particleSystem = new THREE.Points(particles, particleMaterial);
-            scene.add(particleSystem);
+            
+            createHeadlights();
 
-            // Create dust particle system
-            dustParticles = new THREE.Geometry();
-            const dustMaterial = new THREE.PointsMaterial({ color: 0xaaaaaa, size: 0.2, transparent: true, opacity: 0.8 });
-            dustParticleSystem = new THREE.Points(dustParticles, dustMaterial);
-            scene.add(dustParticleSystem);
-
-            updateChunks(car.position);
-            createMovingObjects();
-
+            
             document.addEventListener('keydown', onKeyDown, false);
             document.addEventListener('keyup', onKeyUp, false);
             setupMobileControls();
             window.addEventListener('resize', onWindowResize, false);
 
-            animate();
+            
+            updateChunks(car.position);
+
+            
+            requestAnimationFrame(animate);
         }
 
         function createCar() {
             const carGroup = new THREE.Group();
-            const bodyTexture = new THREE.TextureLoader().load('https://cdn.pixabay.com/photo/2013/07/12/16/11/car-73790_1280.png');
+
             const bodyGeometry = new THREE.BoxGeometry(2, 1, 4);
-            const bodyMaterial = new THREE.MeshPhongMaterial({ map: bodyTexture });
+            const bodyMaterial = new THREE.MeshPhongMaterial({ color: 0xff0000 });  // Red car body
             const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
             body.position.set(0, 0.5, 0);
             carGroup.add(body);
 
-            const wheelTexture = new THREE.TextureLoader().load('https://cdn.pixabay.com/photo/2013/07/12/16/11/car-73790_1280.png');
             const wheelGeometry = new THREE.CylinderGeometry(0.5, 0.5, 0.5, 16);
-            const wheelMaterial = new THREE.MeshPhongMaterial({ map: wheelTexture });
+            const wheelMaterial = new THREE.MeshPhongMaterial({ color: 0x000000 });  // Black wheels
             const positions = [[-1, 0.25, -1.5], [1, 0.25, -1.5], [-1, 0.25, 1.5], [1, 0.25, 1.5]];
-            for (let pos of positions) {
+            positions.forEach(pos => {
                 const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
                 wheel.rotation.z = Math.PI / 2;
                 wheel.position.set(...pos);
                 carGroup.add(wheel);
-            }
+            });
 
             return carGroup;
         }
 
         function createHeadlights() {
-            const headlightGeometry = new THREE.SphereGeometry(0.2, 16, 16);
-            const headlightMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
-            headlights = new THREE.Group();
+            const headlightGeometry = new THREE.ConeGeometry(0.2, 0.5, 16);
+            const headlightMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+
             const leftHeadlight = new THREE.Mesh(headlightGeometry, headlightMaterial);
+            leftHeadlight.position.set(-0.7, 0.25, -2);
+            leftHeadlight.rotation.x = Math.PI / 2;
+            car.add(leftHeadlight);
+
             const rightHeadlight = new THREE.Mesh(headlightGeometry, headlightMaterial);
-            leftHeadlight.position.set(-1, 0.5, 2);
-            rightHeadlight.position.set(1, 0.5, 2);
-            headlights.add(leftHeadlight);
-            headlights.add(rightHeadlight);
-            scene.add(headlights);
-        }
-
-        function createMovingObjects() {
-            const movingCarGeometry = new THREE.BoxGeometry(1.5, 0.5, 3);
-            const movingCarMaterial = new THREE.MeshPhongMaterial({ color: 0x0000ff });
-            for (let i = 0; i < 5; i++) {
-                const movingCar = new THREE.Mesh(movingCarGeometry, movingCarMaterial);
-                movingCar.position.set(Math.random() * 500 - 250, 0.25, Math.random() * 500 - 250);
-                scene.add(movingCar);
-            }
-
-            const pedestrianGeometry = new THREE.BoxGeometry(0.5, 1, 0.5);
-            const pedestrianMaterial = new THREE.MeshPhongMaterial({ color: 0xff00ff });
-            for (let i = 0; i < 5; i++) {
-                const pedestrian = new THREE.Mesh(pedestrianGeometry, pedestrianMaterial);
-                pedestrian.position.set(Math.random() * 500 - 250, 0.5, Math.random() * 500 - 250);
-                scene.add(pedestrian);
-            }
+            rightHeadlight.position.set(0.7, 0.25, -2);
+            rightHeadlight.rotation.x = Math.PI / 2;
+            car.add(rightHeadlight);
         }
 
         function onKeyDown(event) {
-            switch (event.keyCode) {
-                case 38: case 87:
-                    moveForward = true;
-                    break;
-                case 40: case 83:
-                    moveBackward = true;
-                    break;
-                case 37: case 65:
-                    turnLeft = true;
-                    break;
-                case 39: case 68:
-                    turnRight = true;
-                    break;
+            switch (event.code) {
+                case 'ArrowUp': moveForward = true; break;
+                case 'ArrowDown': moveBackward = true; break;
+                case 'ArrowLeft': turnLeft = true; break;
+                case 'ArrowRight': turnRight = true; break;
             }
         }
 
         function onKeyUp(event) {
-            switch (event.keyCode) {
-                case 38: case 87:
-                    moveForward = false;
-                    break;
-                case 40: case 83:
-                    moveBackward = false;
-                    break;
-                case 37: case 65:
-                    turnLeft = false;
-                    break;
-                case 39: case 68:
-                    turnRight = false;
-                    break;
+            switch (event.code) {
+                case 'ArrowUp': moveForward = false; break;
+                case 'ArrowDown': moveBackward = false; break;
+                case 'ArrowLeft': turnLeft = false; break;
+                case 'ArrowRight': turnRight = false; break;
             }
         }
 
         function setupMobileControls() {
-            document.getElementById('forward').addEventListener('touchstart', () => moveForward = true);
-            document.getElementById('forward').addEventListener('touchend', () => moveForward = false);
-            document.getElementById('backward').addEventListener('touchstart', () => moveBackward = true);
-            document.getElementById('backward').addEventListener('touchend', () => moveBackward = false);
-            document.getElementById('left').addEventListener('touchstart', () => turnLeft = true);
-            document.getElementById('left').addEventListener('touchend', () => turnLeft = false);
-            document.getElementById('right').addEventListener('touchstart', () => turnRight = true);
-            document.getElementById('right').addEventListener('touchend', () => turnRight = false);
-        }
-
-        function updateChunks(carPosition) {
-            const chunkX = Math.floor(carPosition.x / chunkSize);
-            const chunkZ = Math.floor(carPosition.z / chunkSize);
-            const chunkKey = `${chunkX},${chunkZ}`;
-
-            if (!chunks[chunkKey]) {
-                const groundTexture = new THREE.TextureLoader().load('https://cdn.pixabay.com/photo/2014/05/02/12/20/grass-33704_1280.png');
-                const groundMaterial = new THREE.MeshPhongMaterial({ map: groundTexture });
-                const groundGeometry = new THREE.PlaneGeometry(chunkSize, chunkSize);
-                const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-                ground.rotation.x = -Math.PI / 2;
-                ground.position.set(chunkX * chunkSize, 0, chunkZ * chunkSize);
-                scene.add(ground);
-                chunks[chunkKey] = ground;
-
-                // Road markings
-                const roadTexture = new THREE.TextureLoader().load('https://cdn.pixabay.com/photo/2014/06/12/16/11/street-366626_1280.png');
-                const roadMaterial = new THREE.MeshBasicMaterial({ map: roadTexture, transparent: true, opacity: 0.5 });
-                const roadGeometry = new THREE.PlaneGeometry(chunkSize, 5);
-                const road = new THREE.Mesh(roadGeometry, roadMaterial);
-                road.rotation.x = -Math.PI / 2;
-                road.position.set(chunkX * chunkSize, 0.01, chunkZ * chunkSize);
-                scene.add(road);
-
-                // Add trees
-                const treeCount = Math.floor(Math.random() * 10) + 5;
-                for (let i = 0; i < treeCount; i++) {
-                    const treeHeight = Math.random() * 3 + 2;
-                    const treeGeometry = new THREE.CylinderGeometry(0.5, 0.5, treeHeight, 8);
-                    const treeMaterial = new THREE.MeshPhongMaterial({ color: 0x8B4513 });
-                    const trunk = new THREE.Mesh(treeGeometry, treeMaterial);
-                    trunk.position.set(chunkX * chunkSize + Math.random() * chunkSize - chunkSize / 2, treeHeight / 2, chunkZ * chunkSize + Math.random() * chunkSize - chunkSize / 2);
-                    scene.add(trunk);
-
-                    const leafGeometry = new THREE.SphereGeometry(1.5, 8, 8);
-                    const leafMaterial = new THREE.MeshPhongMaterial({ color: 0x228B22 });
-                    const leaves = new THREE.Mesh(leafGeometry, leafMaterial);
-                    leaves.position.set(trunk.position.x, trunk.position.y + treeHeight / 2, trunk.position.z);
-                    scene.add(leaves);
-                }
-
-                // Add houses
-                const houseCount = Math.floor(Math.random() * 3) + 1;
-                for (let i = 0; i < houseCount; i++) {
-                    const houseGeometry = new THREE.BoxGeometry(2, 2, 2);
-                    const houseMaterial = new THREE.MeshPhongMaterial({ color: 0xFFFF00 });
-                    const house = new THREE.Mesh(houseGeometry, houseMaterial);
-                    house.position.set(chunkX * chunkSize + Math.random() * chunkSize - chunkSize / 2, 1, chunkZ * chunkSize + Math.random() * chunkSize - chunkSize / 2);
-                    scene.add(house);
-                }
-            }
-        }
-
-        function animate() {
-            requestAnimationFrame(animate);
-
-            if (moveForward) {
-                currentSpeed = Math.min(currentSpeed + acceleration, maxSpeed);
-            } else if (moveBackward) {
-                currentSpeed = Math.max(currentSpeed - deceleration, -maxSpeed / 2);
-            } else {
-                currentSpeed = Math.max(currentSpeed - deceleration, 0);
-            }
-
-            // Move the car
-            car.position.z -= currentSpeed * Math.cos(car.rotation.y);
-            car.position.x -= currentSpeed * Math.sin(car.rotation.y);
-            if (turnLeft) car.rotation.y += turnSpeed;
-            if (turnRight) car.rotation.y -= turnSpeed;
-
-            // Update camera position
-            camera.position.x = car.position.x + 10 * Math.sin(car.rotation.y);
-            camera.position.z = car.position.z + 10 * Math.cos(car.rotation.y);
-            camera.position.y = car.position.y + 5;
-            camera.lookAt(car.position);
-
-            // Update headlights
-            headlights.position.copy(car.position);
-            headlights.rotation.y = car.rotation.y;
-
-            // Particle effect for motion
-            particles.vertices.push(new THREE.Vector3(car.position.x, car.position.y, car.position.z));
-            if (particles.vertices.length > 100) particles.vertices.shift();
-            particleSystem.geometry.setFromPoints(particles.vertices);
-
-            // Dust effect when the car moves
-            if (currentSpeed > 0) {
-                dustParticles.vertices.push(new THREE.Vector3(car.position.x + (Math.random() - 0.5), car.position.y, car.position.z + (Math.random() - 0.5)));
-                if (dustParticles.vertices.length > 100) dustParticles.vertices.shift();
-                dustParticleSystem.geometry.setFromPoints(dustParticles.vertices);
-            }
-
-            score = Math.floor(car.position.length() / 10);
-            document.getElementById('score').innerText = `Score: ${score}`;
-            timeElapsed += 0.1;
-            if (timeElapsed >= 10) {
-                health = Math.max(0, health - 1);
-                document.getElementById('health').innerText = `Health: ${health}`;
-                timeElapsed = 0;
-            }
-
-            updateChunks(car.position);
-            renderer.render(scene, camera);
+            document.getElementById('forward').addEventListener('mousedown', () => moveForward = true);
+            document.getElementById('forward').addEventListener('mouseup', () => moveForward = false);
+            document.getElementById('backward').addEventListener('mousedown', () => moveBackward = true);
+            document.getElementById('backward').addEventListener('mouseup', () => moveBackward = false);
+            document.getElementById('left').addEventListener('mousedown', () => turnLeft = true);
+            document.getElementById('left').addEventListener('mouseup', () => turnLeft = false);
+            document.getElementById('right').addEventListener('mousedown', () => turnRight = true);
+            document.getElementById('right').addEventListener('mouseup', () => turnRight = false);
         }
 
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function updateChunks(position) {
+            const currentChunk = `${Math.floor(position.x / chunkSize)},${Math.floor(position.z / chunkSize)}`;
+            if (!chunks[currentChunk]) {
+                const chunk = createChunk(currentChunk);
+                scene.add(chunk);
+                chunks[currentChunk] = chunk;
+            }
+        }
+
+        function createChunk(key) {
+            const chunk = new THREE.Group();
+            const [chunkX, chunkZ] = key.split(',').map(Number);
+
+            for (let i = 0; i < 10; i++) {
+                const tree = createTree();
+                tree.position.set(
+                    chunkX * chunkSize + (Math.random() - 0.5) * chunkSize,
+                    0,
+                    chunkZ * chunkSize + (Math.random() - 0.5) * chunkSize
+                );
+                chunk.add(tree);
+            }
+
+            return chunk;
+        }
+
+        function createTree() {
+            const tree = new THREE.Group();
+
+            const trunkGeometry = new THREE.CylinderGeometry(0.3, 0.3, 2);
+            const trunkMaterial = new THREE.MeshPhongMaterial({ color: 0x8B4513 });  // Brown trunk
+            const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+            trunk.position.y = 1;
+            tree.add(trunk);
+
+            const foliageGeometry = new THREE.ConeGeometry(1, 2, 8);
+            const foliageMaterial = new THREE.MeshPhongMaterial({ color: 0x228B22 });  // Green foliage
+            const foliage = new THREE.Mesh(foliageGeometry, foliageMaterial);
+            foliage.position.y = 3;
+            tree.add(foliage);
+
+            return tree;
+        }
+
+        function animate(timestamp) {
+            const deltaTime = timestamp - lastRenderTime;
+            lastRenderTime = timestamp;
+
+            if (moveForward) carSpeed = Math.min(carSpeed + acceleration, maxSpeed);
+            if (moveBackward) carSpeed = Math.max(carSpeed - deceleration, -maxSpeed);
+            if (!moveForward && !moveBackward) carSpeed *= (1 - friction);
+
+            if (turnLeft) car.rotation.y += turnSpeed;
+            if (turnRight) car.rotation.y -= turnSpeed;
+
+            const direction = new THREE.Vector3(Math.sin(car.rotation.y), 0, Math.cos(car.rotation.y));
+            car.position.addScaledVector(direction, carSpeed);
+
+            // Smooth camera follow and look at car position
+            camera.position.lerp(car.position.clone().add(new THREE.Vector3(0, 5, 10)), 0.1);
+            camera.lookAt(car.position);
+
+            updateChunks(car.position);
+
+            renderer.render(scene, camera);
+            requestAnimationFrame(animate);
         }
 
         init();
