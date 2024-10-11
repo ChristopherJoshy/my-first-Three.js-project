@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Infinite 3D Car World</title>
+    <title>Infinite 3D Car World with Trees and Houses</title>
     <style>
         body { margin: 0; overflow: hidden; }
         canvas { display: block; }
@@ -39,10 +39,9 @@
         let scene, camera, renderer, car, chunks = {};
         const carSpeed = 0.2, turnSpeed = 0.05;
         let moveForward = false, moveBackward = false, turnLeft = false, turnRight = false;
-        const chunkSize = 200; // Size of each terrain chunk
+        const chunkSize = 200;
 
         function init() {
-            // Set up scene, camera, and renderer
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x87CEEB);
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -52,28 +51,23 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
 
-            // Lighting
             const ambientLight = new THREE.AmbientLight(0x404040);
             scene.add(ambientLight);
             const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
             directionalLight.position.set(5, 10, 7.5);
             scene.add(directionalLight);
 
-            // Initialize car
             car = createCar();
             car.position.set(0, 1, 0);
             scene.add(car);
 
-            // Initialize infinite terrain
             updateChunks(car.position);
 
-            // Event listeners
             document.addEventListener('keydown', onKeyDown, false);
             document.addEventListener('keyup', onKeyUp, false);
             setupMobileControls();
             window.addEventListener('resize', onWindowResize, false);
 
-            // Start the animation loop
             animate();
         }
 
@@ -106,20 +100,16 @@
 
         function onKeyDown(event) {
             switch (event.keyCode) {
-                case 38: // up arrow
-                case 87: // W
+                case 38: case 87:
                     moveForward = true;
                     break;
-                case 40: // down arrow
-                case 83: // S
+                case 40: case 83:
                     moveBackward = true;
                     break;
-                case 37: // left arrow
-                case 65: // A
+                case 37: case 65:
                     turnLeft = true;
                     break;
-                case 39: // right arrow
-                case 68: // D
+                case 39: case 68:
                     turnRight = true;
                     break;
             }
@@ -127,20 +117,16 @@
 
         function onKeyUp(event) {
             switch (event.keyCode) {
-                case 38:
-                case 87:
+                case 38: case 87:
                     moveForward = false;
                     break;
-                case 40:
-                case 83:
+                case 40: case 83:
                     moveBackward = false;
                     break;
-                case 37:
-                case 65:
+                case 37: case 65:
                     turnLeft = false;
                     break;
-                case 39:
-                case 68:
+                case 39: case 68:
                     turnRight = false;
                     break;
             }
@@ -171,24 +157,42 @@
                 scene.add(chunk);
                 chunks[chunkKey] = chunk;
 
-                // Optionally, you can add random elements like trees, rocks, or streetlights in the chunk
-                createStreetLights(chunk.position);
+                addTreesAndHouses(chunk.position);
             }
         }
 
-        function createStreetLights(chunkPosition) {
-            const poleMaterial = new THREE.MeshPhongMaterial({ color: 0x808080 });
-            const lightMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
-            for (let i = -chunkSize / 2; i <= chunkSize / 2; i += 40) {
-                const poleGeometry = new THREE.CylinderGeometry(0.1, 0.1, 5, 16);
-                const pole = new THREE.Mesh(poleGeometry, poleMaterial);
-                pole.position.set(chunkPosition.x + i, 2.5, chunkPosition.z + 10);
-                scene.add(pole);
+        function addTreesAndHouses(chunkPosition) {
+            const treeMaterial = new THREE.MeshPhongMaterial({ color: 0x228B22 });
+            const trunkMaterial = new THREE.MeshPhongMaterial({ color: 0x8B4513 });
+            const houseMaterial = new THREE.MeshPhongMaterial({ color: 0x808080 });
 
-                const lightGeometry = new THREE.SphereGeometry(0.3, 16, 16);
-                const light = new THREE.Mesh(lightGeometry, lightMaterial);
-                light.position.set(chunkPosition.x + i, 5, chunkPosition.z + 10);
-                scene.add(light);
+            for (let i = 0; i < 5; i++) {
+                const treePosition = [
+                    chunkPosition.x + Math.random() * chunkSize - chunkSize / 2,
+                    0,
+                    chunkPosition.z + Math.random() * chunkSize - chunkSize / 2
+                ];
+                const treeTrunk = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 2), trunkMaterial);
+                treeTrunk.position.set(...treePosition);
+                treeTrunk.position.y = 1;
+                scene.add(treeTrunk);
+
+                const treeTop = new THREE.Mesh(new THREE.ConeGeometry(1, 3), treeMaterial);
+                treeTop.position.set(...treePosition);
+                treeTop.position.y = 3;
+                scene.add(treeTop);
+            }
+
+            for (let i = 0; i < 2; i++) {
+                const housePosition = [
+                    chunkPosition.x + Math.random() * chunkSize - chunkSize / 2,
+                    0,
+                    chunkPosition.z + Math.random() * chunkSize - chunkSize / 2
+                ];
+                const house = new THREE.Mesh(new THREE.BoxGeometry(4, 4, 4), houseMaterial);
+                house.position.set(...housePosition);
+                house.position.y = 2;
+                scene.add(house);
             }
         }
 
@@ -201,17 +205,14 @@
         function animate() {
             requestAnimationFrame(animate);
 
-            // Car movement
             if (moveForward) car.translateZ(-carSpeed);
             if (moveBackward) car.translateZ(carSpeed);
             if (turnLeft) car.rotation.y += turnSpeed;
             if (turnRight) car.rotation.y -= turnSpeed;
 
-            // Camera follows the car
             camera.position.lerp(new THREE.Vector3(car.position.x, car.position.y + 5, car.position.z + 10), 0.05);
             camera.lookAt(car.position);
 
-            // Update infinite terrain around the car
             updateChunks(car.position);
 
             renderer.render(scene, camera);
