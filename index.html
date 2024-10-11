@@ -212,6 +212,12 @@
             car.position.x -= Math.sin(car.rotation.y) * carSpeed;
             car.position.z -= Math.cos(car.rotation.y) * carSpeed;
 
+            // Update camera position to follow the car
+            camera.position.x = car.position.x;
+            camera.position.z = car.position.z + 10; // Adjust this distance as needed
+            camera.position.y = car.position.y + 5; // Adjust this height as needed
+            camera.lookAt(car.position); // Look at the car
+
             updateChunks(car.position);
             renderer.render(scene, camera);
             requestAnimationFrame(animate);
