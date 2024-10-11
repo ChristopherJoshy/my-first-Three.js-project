@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Infinite 3D Car World with Trees and Houses</title>
+    <title>Enhanced Infinite 3D Car World</title>
     <style>
         body { margin: 0; overflow: hidden; }
         canvas { display: block; }
@@ -29,17 +29,16 @@
 </head>
 <body>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-
     <button id="forward" class="control-button">↑</button>
     <button id="backward" class="control-button">↓</button>
     <button id="left" class="control-button">←</button>
     <button id="right" class="control-button">→</button>
 
     <script>
-        let scene, camera, renderer, car, chunks = {};
-        const carSpeed = 0.2, turnSpeed = 0.05;
+        let scene, camera, renderer, car, particles, particleSystem, chunks = {};
+        const carSpeed = 0.3, maxSpeed = 1.0, turnSpeed = 0.05;
         let moveForward = false, moveBackward = false, turnLeft = false, turnRight = false;
-        const chunkSize = 200;
+        let currentSpeed = 0, acceleration = 0.05, deceleration = 0.1, chunkSize = 200;
 
         function init() {
             scene = new THREE.Scene();
@@ -61,6 +60,11 @@
             car.position.set(0, 1, 0);
             scene.add(car);
 
+            particles = new THREE.Geometry();
+            const particleMaterial = new THREE.PointsMaterial({ color: 0xaaaaaa, size: 0.5, transparent: true, opacity: 0.8 });
+            particleSystem = new THREE.Points(particles, particleMaterial);
+            scene.add(particleSystem);
+
             updateChunks(car.position);
 
             document.addEventListener('keydown', onKeyDown, false);
@@ -73,21 +77,17 @@
 
         function createCar() {
             const carGroup = new THREE.Group();
-
+            const bodyTexture = new THREE.TextureLoader().load('https://cdn.pixabay.com/photo/2013/07/12/16/11/car-73790_1280.png');
             const bodyGeometry = new THREE.BoxGeometry(2, 1, 4);
-            const bodyMaterial = new THREE.MeshPhongMaterial({ color: 0xff0000 });
+            const bodyMaterial = new THREE.MeshPhongMaterial({ map: bodyTexture });
             const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
             body.position.set(0, 0.5, 0);
             carGroup.add(body);
 
+            const wheelTexture = new THREE.TextureLoader().load('https://cdn.pixabay.com/photo/2013/07/12/16/11/car-73790_1280.png');
             const wheelGeometry = new THREE.CylinderGeometry(0.5, 0.5, 0.5, 16);
-            const wheelMaterial = new THREE.MeshPhongMaterial({ color: 0x333333 });
-            const positions = [
-                [-1, 0.25, -1.5],
-                [1, 0.25, -1.5],
-                [-1, 0.25, 1.5],
-                [1, 0.25, 1.5],
-            ];
+            const wheelMaterial = new THREE.MeshPhongMaterial({ map: wheelTexture });
+            const positions = [[-1, 0.25, -1.5], [1, 0.25, -1.5], [-1, 0.25, 1.5], [1, 0.25, 1.5]];
             for (let pos of positions) {
                 const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
                 wheel.rotation.z = Math.PI / 2;
@@ -149,8 +149,9 @@
             const chunkKey = `${chunkX},${chunkZ}`;
 
             if (!chunks[chunkKey]) {
+                const groundTexture = new THREE.TextureLoader().load('https://cdn.pixabay.com/photo/2014/10/14/01/49/landscape-485178_1280.jpg');
                 const groundGeometry = new THREE.PlaneGeometry(chunkSize, chunkSize);
-                const groundMaterial = new THREE.MeshPhongMaterial({ color: 0x00ff00 });
+                const groundMaterial = new THREE.MeshPhongMaterial({ map: groundTexture });
                 const chunk = new THREE.Mesh(groundGeometry, groundMaterial);
                 chunk.rotation.x = -Math.PI / 2;
                 chunk.position.set(chunkX * chunkSize, 0, chunkZ * chunkSize);
@@ -189,33 +190,46 @@
                     0,
                     chunkPosition.z + Math.random() * chunkSize - chunkSize / 2
                 ];
-                const house = new THREE.Mesh(new THREE.BoxGeometry(4, 4, 4), houseMaterial);
+                const house = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), houseMaterial);
                 house.position.set(...housePosition);
-                house.position.y = 2;
+                house.position.y = 1;
                 scene.add(house);
             }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (moveForward) {
+                currentSpeed = Math.min(currentSpeed + acceleration, maxSpeed);
+            } else if (moveBackward) {
+                currentSpeed = Math.max(currentSpeed - deceleration, -maxSpeed / 2);
+            } else {
+                currentSpeed = Math.max(currentSpeed - deceleration, 0);
+            }
+
+            car.position.z -= currentSpeed * Math.cos(car.rotation.y);
+            car.position.x -= currentSpeed * Math.sin(car.rotation.y);
+            if (turnLeft) car.rotation.y += turnSpeed;
+            if (turnRight) car.rotation.y -= turnSpeed;
+
+            camera.position.x = car.position.x + 10 * Math.sin(car.rotation.y);
+            camera.position.z = car.position.z + 10 * Math.cos(car.rotation.y);
+            camera.position.y = car.position.y + 5;
+            camera.lookAt(car.position);
+
+            particles.vertices.push(new THREE.Vector3(car.position.x, car.position.y, car.position.z));
+            if (particles.vertices.length > 100) particles.vertices.shift();
+            particleSystem.geometry.setFromPoints(particles.vertices);
+
+            updateChunks(car.position);
+            renderer.render(scene, camera);
         }
 
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-
-        function animate() {
-            requestAnimationFrame(animate);
-
-            if (moveForward) car.translateZ(-carSpeed);
-            if (moveBackward) car.translateZ(carSpeed);
-            if (turnLeft) car.rotation.y += turnSpeed;
-            if (turnRight) car.rotation.y -= turnSpeed;
-
-            camera.position.lerp(new THREE.Vector3(car.position.x, car.position.y + 5, car.position.z + 10), 0.05);
-            camera.lookAt(car.position);
-
-            updateChunks(car.position);
-
-            renderer.render(scene, camera);
         }
 
         init();
