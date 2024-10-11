@@ -25,9 +25,13 @@
         #backward { left: 50%; transform: translateX(-50%); bottom: 90px; }
         #left { left: 20px; }
         #right { right: 20px; }
+        #score { position: absolute; top: 20px; left: 20px; color: white; font-size: 24px; }
+        #health { position: absolute; top: 50px; left: 20px; color: white; font-size: 24px; }
     </style>
 </head>
 <body>
+    <div id="score">Score: 0</div>
+    <div id="health">Health: 100</div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <button id="forward" class="control-button">↑</button>
     <button id="backward" class="control-button">↓</button>
@@ -35,10 +39,11 @@
     <button id="right" class="control-button">→</button>
 
     <script>
-        let scene, camera, renderer, car, particles, particleSystem, chunks = {};
+        let scene, camera, renderer, car, particles, particleSystem, dustParticles, dustParticleSystem, headlights, chunks = {};
         const carSpeed = 0.3, maxSpeed = 1.0, turnSpeed = 0.05;
         let moveForward = false, moveBackward = false, turnLeft = false, turnRight = false;
         let currentSpeed = 0, acceleration = 0.05, deceleration = 0.1, chunkSize = 200;
+        let score = 0, health = 100, timeElapsed = 0;
 
         function init() {
             scene = new THREE.Scene();
@@ -60,12 +65,20 @@
             car.position.set(0, 1, 0);
             scene.add(car);
 
+            // Create particle system for motion trail
             particles = new THREE.Geometry();
             const particleMaterial = new THREE.PointsMaterial({ color: 0xaaaaaa, size: 0.5, transparent: true, opacity: 0.8 });
             particleSystem = new THREE.Points(particles, particleMaterial);
             scene.add(particleSystem);
 
+            // Create dust particle system
+            dustParticles = new THREE.Geometry();
+            const dustMaterial = new THREE.PointsMaterial({ color: 0xaaaaaa, size: 0.2, transparent: true, opacity: 0.8 });
+            dustParticleSystem = new THREE.Points(dustParticles, dustMaterial);
+            scene.add(dustParticleSystem);
+
             updateChunks(car.position);
+            createMovingObjects();
 
             document.addEventListener('keydown', onKeyDown, false);
             document.addEventListener('keyup', onKeyUp, false);
@@ -73,6 +86,8 @@
             window.addEventListener('resize', onWindowResize, false);
 
             animate();
+            setupAudio();
+            createHeadlights();
         }
 
         function createCar() {
@@ -96,6 +111,37 @@
             }
 
             return carGroup;
+        }
+
+        function createHeadlights() {
+            const headlightGeometry = new THREE.SphereGeometry(0.2, 16, 16);
+            const headlightMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+            headlights = new THREE.Group();
+            const leftHeadlight = new THREE.Mesh(headlightGeometry, headlightMaterial);
+            const rightHeadlight = new THREE.Mesh(headlightGeometry, headlightMaterial);
+            leftHeadlight.position.set(-1, 0.5, 2);
+            rightHeadlight.position.set(1, 0.5, 2);
+            headlights.add(leftHeadlight);
+            headlights.add(rightHeadlight);
+            scene.add(headlights);
+        }
+
+        function createMovingObjects() {
+            const movingCarGeometry = new THREE.BoxGeometry(1.5, 0.5, 3);
+            const movingCarMaterial = new THREE.MeshPhongMaterial({ color: 0x0000ff });
+            for (let i = 0; i < 5; i++) {
+                const movingCar = new THREE.Mesh(movingCarGeometry, movingCarMaterial);
+                movingCar.position.set(Math.random() * 500 - 250, 0.25, Math.random() * 500 - 250);
+                scene.add(movingCar);
+            }
+
+            const pedestrianGeometry = new THREE.BoxGeometry(0.5, 1, 0.5);
+            const pedestrianMaterial = new THREE.MeshPhongMaterial({ color: 0xff00ff });
+            for (let i = 0; i < 5; i++) {
+                const pedestrian = new THREE.Mesh(pedestrianGeometry, pedestrianMaterial);
+                pedestrian.position.set(Math.random() * 500 - 250, 0.5, Math.random() * 500 - 250);
+                scene.add(pedestrian);
+            }
         }
 
         function onKeyDown(event) {
@@ -143,57 +189,56 @@
             document.getElementById('right').addEventListener('touchend', () => turnRight = false);
         }
 
-        function updateChunks(position) {
-            const chunkX = Math.floor(position.x / chunkSize);
-            const chunkZ = Math.floor(position.z / chunkSize);
+        function updateChunks(carPosition) {
+            const chunkX = Math.floor(carPosition.x / chunkSize);
+            const chunkZ = Math.floor(carPosition.z / chunkSize);
             const chunkKey = `${chunkX},${chunkZ}`;
 
             if (!chunks[chunkKey]) {
-                const groundTexture = new THREE.TextureLoader().load('https://cdn.pixabay.com/photo/2014/10/14/01/49/landscape-485178_1280.jpg');
-                const groundGeometry = new THREE.PlaneGeometry(chunkSize, chunkSize);
+                const groundTexture = new THREE.TextureLoader().load('https://cdn.pixabay.com/photo/2014/05/02/12/20/grass-33704_1280.png');
                 const groundMaterial = new THREE.MeshPhongMaterial({ map: groundTexture });
-                const chunk = new THREE.Mesh(groundGeometry, groundMaterial);
-                chunk.rotation.x = -Math.PI / 2;
-                chunk.position.set(chunkX * chunkSize, 0, chunkZ * chunkSize);
-                scene.add(chunk);
-                chunks[chunkKey] = chunk;
+                const groundGeometry = new THREE.PlaneGeometry(chunkSize, chunkSize);
+                const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+                ground.rotation.x = -Math.PI / 2;
+                ground.position.set(chunkX * chunkSize, 0, chunkZ * chunkSize);
+                scene.add(ground);
+                chunks[chunkKey] = ground;
 
-                addTreesAndHouses(chunk.position);
-            }
-        }
+                // Road markings
+                const roadTexture = new THREE.TextureLoader().load('https://cdn.pixabay.com/photo/2014/06/12/16/11/street-366626_1280.png');
+                const roadMaterial = new THREE.MeshBasicMaterial({ map: roadTexture, transparent: true, opacity: 0.5 });
+                const roadGeometry = new THREE.PlaneGeometry(chunkSize, 5);
+                const road = new THREE.Mesh(roadGeometry, roadMaterial);
+                road.rotation.x = -Math.PI / 2;
+                road.position.set(chunkX * chunkSize, 0.01, chunkZ * chunkSize);
+                scene.add(road);
 
-        function addTreesAndHouses(chunkPosition) {
-            const treeMaterial = new THREE.MeshPhongMaterial({ color: 0x228B22 });
-            const trunkMaterial = new THREE.MeshPhongMaterial({ color: 0x8B4513 });
-            const houseMaterial = new THREE.MeshPhongMaterial({ color: 0x808080 });
+                // Add trees
+                const treeCount = Math.floor(Math.random() * 10) + 5;
+                for (let i = 0; i < treeCount; i++) {
+                    const treeHeight = Math.random() * 3 + 2;
+                    const treeGeometry = new THREE.CylinderGeometry(0.5, 0.5, treeHeight, 8);
+                    const treeMaterial = new THREE.MeshPhongMaterial({ color: 0x8B4513 });
+                    const trunk = new THREE.Mesh(treeGeometry, treeMaterial);
+                    trunk.position.set(chunkX * chunkSize + Math.random() * chunkSize - chunkSize / 2, treeHeight / 2, chunkZ * chunkSize + Math.random() * chunkSize - chunkSize / 2);
+                    scene.add(trunk);
 
-            for (let i = 0; i < 5; i++) {
-                const treePosition = [
-                    chunkPosition.x + Math.random() * chunkSize - chunkSize / 2,
-                    0,
-                    chunkPosition.z + Math.random() * chunkSize - chunkSize / 2
-                ];
-                const treeTrunk = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 2), trunkMaterial);
-                treeTrunk.position.set(...treePosition);
-                treeTrunk.position.y = 1;
-                scene.add(treeTrunk);
+                    const leafGeometry = new THREE.SphereGeometry(1.5, 8, 8);
+                    const leafMaterial = new THREE.MeshPhongMaterial({ color: 0x228B22 });
+                    const leaves = new THREE.Mesh(leafGeometry, leafMaterial);
+                    leaves.position.set(trunk.position.x, trunk.position.y + treeHeight / 2, trunk.position.z);
+                    scene.add(leaves);
+                }
 
-                const treeTop = new THREE.Mesh(new THREE.ConeGeometry(1, 3), treeMaterial);
-                treeTop.position.set(...treePosition);
-                treeTop.position.y = 3;
-                scene.add(treeTop);
-            }
-
-            for (let i = 0; i < 2; i++) {
-                const housePosition = [
-                    chunkPosition.x + Math.random() * chunkSize - chunkSize / 2,
-                    0,
-                    chunkPosition.z + Math.random() * chunkSize - chunkSize / 2
-                ];
-                const house = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), houseMaterial);
-                house.position.set(...housePosition);
-                house.position.y = 1;
-                scene.add(house);
+                // Add houses
+                const houseCount = Math.floor(Math.random() * 3) + 1;
+                for (let i = 0; i < houseCount; i++) {
+                    const houseGeometry = new THREE.BoxGeometry(2, 2, 2);
+                    const houseMaterial = new THREE.MeshPhongMaterial({ color: 0xFFFF00 });
+                    const house = new THREE.Mesh(houseGeometry, houseMaterial);
+                    house.position.set(chunkX * chunkSize + Math.random() * chunkSize - chunkSize / 2, 1, chunkZ * chunkSize + Math.random() * chunkSize - chunkSize / 2);
+                    scene.add(house);
+                }
             }
         }
 
@@ -208,19 +253,42 @@
                 currentSpeed = Math.max(currentSpeed - deceleration, 0);
             }
 
+            // Move the car
             car.position.z -= currentSpeed * Math.cos(car.rotation.y);
             car.position.x -= currentSpeed * Math.sin(car.rotation.y);
             if (turnLeft) car.rotation.y += turnSpeed;
             if (turnRight) car.rotation.y -= turnSpeed;
 
+            // Update camera position
             camera.position.x = car.position.x + 10 * Math.sin(car.rotation.y);
             camera.position.z = car.position.z + 10 * Math.cos(car.rotation.y);
             camera.position.y = car.position.y + 5;
             camera.lookAt(car.position);
 
+            // Update headlights
+            headlights.position.copy(car.position);
+            headlights.rotation.y = car.rotation.y;
+
+            // Particle effect for motion
             particles.vertices.push(new THREE.Vector3(car.position.x, car.position.y, car.position.z));
             if (particles.vertices.length > 100) particles.vertices.shift();
             particleSystem.geometry.setFromPoints(particles.vertices);
+
+            // Dust effect when the car moves
+            if (currentSpeed > 0) {
+                dustParticles.vertices.push(new THREE.Vector3(car.position.x + (Math.random() - 0.5), car.position.y, car.position.z + (Math.random() - 0.5)));
+                if (dustParticles.vertices.length > 100) dustParticles.vertices.shift();
+                dustParticleSystem.geometry.setFromPoints(dustParticles.vertices);
+            }
+
+            score = Math.floor(car.position.length() / 10);
+            document.getElementById('score').innerText = `Score: ${score}`;
+            timeElapsed += 0.1;
+            if (timeElapsed >= 10) {
+                health = Math.max(0, health - 1);
+                document.getElementById('health').innerText = `Health: ${health}`;
+                timeElapsed = 0;
+            }
 
             updateChunks(car.position);
             renderer.render(scene, camera);
@@ -230,6 +298,19 @@
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function setupAudio() {
+            const listener = new THREE.AudioListener();
+            camera.add(listener);
+            const sound = new THREE.Audio(listener);
+            const audioLoader = new THREE.AudioLoader();
+            audioLoader.load('https://example.com/ambient-sound.mp3', (buffer) => {
+                sound.setBuffer(buffer);
+                sound.setLoop(true);
+                sound.setVolume(0.5);
+                sound.play();
+            });
         }
 
         init();
