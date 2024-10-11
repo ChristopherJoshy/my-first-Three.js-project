@@ -4,17 +4,220 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Infinite 3D Car World</title>
-    <link rel="stylesheet" href="styles.css">
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+        .control-button {
+            position: absolute;
+            bottom: 20px;
+            width: 60px;
+            height: 60px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            font-size: 30px;
+            border: none;
+            border-radius: 30px;
+            text-align: center;
+            line-height: 60px;
+            user-select: none;
+        }
+        #forward { left: 50%; transform: translateX(-50%); }
+        #backward { left: 50%; transform: translateX(-50%); bottom: 90px; }
+        #left { left: 20px; }
+        #right { right: 20px; }
+        #score { position: absolute; top: 20px; left: 20px; color: white; font-size: 24px; }
+        #health { position: absolute; top: 50px; left: 20px; color: white; font-size: 24px; }
+    </style>
 </head>
 <body>
     <div id="score">Score: 0</div>
     <div id="health">Health: 100</div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <button id="forward" class="control-button">↑</button>
     <button id="backward" class="control-button">↓</button>
     <button id="left" class="control-button">←</button>
     <button id="right" class="control-button">→</button>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="main.js"></script>
+    <script>
+        let scene, camera, renderer, car, chunks = {};
+        let carSpeed = 0, maxSpeed = 2, turnSpeed = 0.03;
+        let moveForward = false, moveBackward = false, turnLeft = false, turnRight = false;
+        let acceleration = 0.05, deceleration = 0.08, friction = 0.02, chunkSize = 200;
+        let score = 0, health = 100;
+        let lastRenderTime = 0;
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB);  // Sky-blue background
+
+            // Camera setup with adjusted near/far clipping to avoid z-fighting
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 5, 10);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0x404040);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(5, 10, 7.5);
+            scene.add(directionalLight);
+
+            // Create Car
+            car = createCar();
+            car.position.set(0, 1, 0);
+            scene.add(car);
+
+            // Add ground/terrain
+            createTerrain();
+
+            // Add Event Listeners
+            document.addEventListener('keydown', onKeyDown, false);
+            document.addEventListener('keyup', onKeyUp, false);
+            setupMobileControls();
+            window.addEventListener('resize', onWindowResize, false);
+
+            // Generate initial chunks of the world
+            updateChunks(car.position);
+
+            // Start animation loop
+            requestAnimationFrame(animate);
+        }
+
+        // Create simple car model
+        function createCar() {
+            const carGroup = new THREE.Group();
+
+            const bodyGeometry = new THREE.BoxGeometry(2, 1, 4);
+            const bodyMaterial = new THREE.MeshPhongMaterial({ color: 0xff0000 });  // Red car body
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.position.set(0, 0.5, 0);
+            carGroup.add(body);
+
+            const wheelGeometry = new THREE.CylinderGeometry(0.5, 0.5, 0.5, 16);
+            const wheelMaterial = new THREE.MeshPhongMaterial({ color: 0x000000 });  // Black wheels
+            const positions = [[-1, 0.25, -1.5], [1, 0.25, -1.5], [-1, 0.25, 1.5], [1, 0.25, 1.5]];
+            positions.forEach(pos => {
+                const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+                wheel.rotation.z = Math.PI / 2;
+                wheel.position.set(...pos);
+                carGroup.add(wheel);
+            });
+
+            return carGroup;
+        }
+
+        // Create a ground/terrain
+        function createTerrain() {
+            const geometry = new THREE.PlaneGeometry(10000, 10000); // Large plane for ground
+            const material = new THREE.MeshPhongMaterial({ color: 0x228B22 });  // Green ground (grass)
+            const ground = new THREE.Mesh(geometry, material);
+            ground.rotation.x = - Math.PI / 2;  // Rotate to be flat on the xz-plane
+            ground.position.y = 0;  // Position at ground level
+            scene.add(ground);
+        }
+
+        function onKeyDown(event) {
+            switch (event.code) {
+                case 'ArrowUp': moveForward = true; break;
+                case 'ArrowDown': moveBackward = true; break;
+                case 'ArrowLeft': turnLeft = true; break;
+                case 'ArrowRight': turnRight = true; break;
+            }
+        }
+
+        function onKeyUp(event) {
+            switch (event.code) {
+                case 'ArrowUp': moveForward = false; break;
+                case 'ArrowDown': moveBackward = false; break;
+                case 'ArrowLeft': turnLeft = false; break;
+                case 'ArrowRight': turnRight = false; break;
+            }
+        }
+
+        function setupMobileControls() {
+            document.getElementById('forward').addEventListener('mousedown', () => moveForward = true);
+            document.getElementById('forward').addEventListener('mouseup', () => moveForward = false);
+            document.getElementById('backward').addEventListener('mousedown', () => moveBackward = true);
+            document.getElementById('backward').addEventListener('mouseup', () => moveBackward = false);
+            document.getElementById('left').addEventListener('mousedown', () => turnLeft = true);
+            document.getElementById('left').addEventListener('mouseup', () => turnLeft = false);
+            document.getElementById('right').addEventListener('mousedown', () => turnRight = true);
+            document.getElementById('right').addEventListener('mouseup', () => turnRight = false);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function updateChunks(position) {
+            const currentChunk = `${Math.floor(position.x / chunkSize)},${Math.floor(position.z / chunkSize)}`;
+            if (!chunks[currentChunk]) {
+                const chunk = createChunk(currentChunk);
+                scene.add(chunk);
+                chunks[currentChunk] = chunk;
+            }
+        }
+
+        function createChunk(key) {
+            const chunk = new THREE.Group();
+            const [chunkX, chunkZ] = key.split(',').map(Number);
+
+            for (let i = 0; i < 10; i++) {
+                const tree = createTree();
+                tree.position.set(
+                    chunkX * chunkSize + (Math.random() - 0.5) * chunkSize,
+                    0,
+                    chunkZ * chunkSize + (Math.random() - 0.5) * chunkSize
+                );
+                chunk.add(tree);
+            }
+
+            return chunk;
+        }
+
+        function createTree() {
+            const tree = new THREE.Group();
+
+            const trunkGeometry = new THREE.CylinderGeometry(0.2, 0.2, 2, 16);
+            const trunkMaterial = new THREE.MeshPhongMaterial({ color: 0x8B4513 });  // Brown trunk
+            const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+            trunk.position.set(0, 1, 0);
+            tree.add(trunk);
+
+            const foliageGeometry = new THREE.SphereGeometry(1, 16, 16);
+            const foliageMaterial = new THREE.MeshPhongMaterial({ color: 0x228B22 });  // Green foliage
+            const foliage = new THREE.Mesh(foliageGeometry, foliageMaterial);
+            foliage.position.set(0, 2, 0);
+            tree.add(foliage);
+
+            return tree;
+        }
+
+        function animate(time) {
+            const delta = (time - lastRenderTime) / 1000;
+            lastRenderTime = time;
+
+            if (moveForward) carSpeed = Math.min(carSpeed + acceleration, maxSpeed);
+            else if (moveBackward) carSpeed = Math.max(carSpeed - acceleration, -maxSpeed);
+            else carSpeed = Math.abs(carSpeed) < friction ? 0 : carSpeed - Math.sign(carSpeed) * friction;
+
+            if (turnLeft && carSpeed !== 0) car.rotation.y += turnSpeed * Math.sign(carSpeed);
+            if (turnRight && carSpeed !== 0) car.rotation.y -= turnSpeed * Math.sign(carSpeed);
+
+            car.position.x -= Math.sin(car.rotation.y) * carSpeed;
+            car.position.z -= Math.cos(car.rotation.y) * carSpeed;
+
+            updateChunks(car.position);
+            renderer.render(scene, camera);
+            requestAnimationFrame(animate);
+        }
+
+        init();
+    </script>
 </body>
 </html>
