@@ -3,16 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Car Game</title>
+    <title>Infinite 3D Car World</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div id="game-container"></div>
+    <div id="score">Score: 0</div>
+    <div id="health">Health: 100</div>
 
-   
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-
-    
     <script src="main.js"></script>
+
+    <button id="forward" class="control-button">↑</button>
+    <button id="backward" class="control-button">↓</button>
+    <button id="left" class="control-button">←</button>
+    <button id="right" class="control-button">→</button>
 </body>
 </html>
