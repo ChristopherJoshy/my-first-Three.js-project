@@ -44,9 +44,9 @@
 
     <script>
         let scene, camera, renderer, car, chunks = {}, trees = [], obstacles = [];
-        let carSpeed = 0, maxSpeed = 5, turnSpeed = 0.03;
+        let carSpeed = 0, maxSpeed = 5, turnSpeed = 0.05;
         let moveForward = false, moveBackward = false, turnLeft = false, turnRight = false;
-        let acceleration = 0.05, friction = 0.02, chunkSize = 300;
+        let acceleration = 0.1, deceleration = 0.1, friction = 0.01, chunkSize = 300;
         let score = 0, health = 100, lastRenderTime = 0, lastFPS = 0;
         let fpsDisplay = document.getElementById('fps');
 
@@ -54,21 +54,19 @@
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x87CEEB);
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 5, 10);
-            camera.lookAt(0, 5, 0);
+            camera.position.set(0, 5, 15);
+            camera.lookAt(0, 1, 0);
 
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
 
-            // Lighting setup
             let ambientLight = new THREE.AmbientLight(0x404040);
             scene.add(ambientLight);
             let directionalLight = new THREE.DirectionalLight(0xffffff, 1);
             directionalLight.position.set(5, 10, 7.5);
             scene.add(directionalLight);
 
-            // Car setup
             car = createCar();
             car.position.set(0, 1, 0);
             scene.add(car);
@@ -87,14 +85,12 @@
 
         function createCar() {
             let carGroup = new THREE.Group();
-
             let bodyGeometry = new THREE.BoxGeometry(3, 1, 6);
             let bodyMaterial = new THREE.MeshPhongMaterial({ color: 0x0000FF });
             let body = new THREE.Mesh(bodyGeometry, bodyMaterial);
             body.position.set(0, 0.5, 0);
             carGroup.add(body);
 
-            // Wheels
             const wheelGeometry = new THREE.CylinderGeometry(0.75, 0.75, 0.5, 16);
             let wheelMaterial = new THREE.MeshPhongMaterial({ color: 0x333333 });
             let wheelFL = new THREE.Mesh(wheelGeometry, wheelMaterial);
@@ -107,13 +103,11 @@
             carGroup.add(wheelFR);
 
             let wheelRL = wheelFL.clone();
-            wheelRL.position.y = 0.5;
-            wheelRL.position.z = 2.5;
+            wheelRL.position.set(-1.5, 0, 2.5);
             carGroup.add(wheelRL);
 
             let wheelRR = wheelFR.clone();
-            wheelRR.position.y = 0.5;
-            wheelRR.position.z = -2.5;
+            wheelRR.position.set(1.5, 0, -2.5);
             carGroup.add(wheelRR);
 
             return carGroup;
@@ -208,46 +202,55 @@
 
         function setupMobileControls() {
             let forwardButton = document.getElementById('forward');
-            let backwardButton = document.getElementById('backward');
-            let leftButton = document.getElementById('left');
-            let rightButton = document.getElementById('right');
+            forwardButton.addEventListener('mousedown', () => moveForward = true);
+            forwardButton.addEventListener('mouseup', () => moveForward = false);
 
-            forwardButton.addEventListener('touchstart', () => moveForward = true);
-            forwardButton.addEventListener('touchend', () => moveForward = false);
-            backwardButton.addEventListener('touchstart', () => moveBackward = true);
-            backwardButton.addEventListener('touchend', () => moveBackward = false);
-            leftButton.addEventListener('touchstart', () => turnLeft = true);
-            leftButton.addEventListener('touchend', () => turnLeft = false);
-            rightButton.addEventListener('touchstart', () => turnRight = true);
-            rightButton.addEventListener('touchend', () => turnRight = false);
+            let backwardButton = document.getElementById('backward');
+            backwardButton.addEventListener('mousedown', () => moveBackward = true);
+            backwardButton.addEventListener('mouseup', () => moveBackward = false);
+
+            let leftButton = document.getElementById('left');
+            leftButton.addEventListener('mousedown', () => turnLeft = true);
+            leftButton.addEventListener('mouseup', () => turnLeft = false);
+
+            let rightButton = document.getElementById('right');
+            rightButton.addEventListener('mousedown', () => turnRight = true);
+            rightButton.addEventListener('mouseup', () => turnRight = false);
         }
 
-        function animate(timestamp) {
-            if (!lastRenderTime) lastRenderTime = timestamp;
-            let delta = timestamp - lastRenderTime;
+        function animate(time) {
+            let delta = time - lastRenderTime;
+            lastRenderTime = time;
+            let fps = Math.round(1000 / delta);
+            lastFPS = fps;
+            fpsDisplay.textContent = `FPS: ${fps}`;
 
-            // Car movement with proper controls
-            if (moveForward && carSpeed < maxSpeed) carSpeed += acceleration;
-            if (moveBackward && carSpeed > -maxSpeed / 2) carSpeed -= acceleration;
-            if (!moveForward && !moveBackward) carSpeed *= 1 - friction;
+            if (moveForward) {
+                carSpeed = Math.min(maxSpeed, carSpeed + acceleration);
+            } else if (moveBackward) {
+                carSpeed = Math.max(-maxSpeed, carSpeed - acceleration);
+            } else {
+                carSpeed = carSpeed > 0 ? carSpeed - deceleration : carSpeed + deceleration;
+                if (Math.abs(carSpeed) < friction) carSpeed = 0;
+            }
 
-            // Apply car movement in the forward direction
-            car.translateZ(carSpeed);
+            if (turnLeft && carSpeed !== 0) {
+                car.rotation.y += turnSpeed;
+            }
+            if (turnRight && carSpeed !== 0) {
+                car.rotation.y -= turnSpeed;
+            }
 
-            // Apply rotation for turning
-            if (turnLeft) car.rotation.y += turnSpeed;
-            if (turnRight) car.rotation.y -= turnSpeed;
+            let direction = new THREE.Vector3(0, 0, -1);
+            direction.applyQuaternion(car.quaternion);
+            car.position.addScaledVector(direction, carSpeed);
 
             updateChunks(car.position);
 
-            // Update FPS
-            if (timestamp - lastFPS >= 1000) {
-                fpsDisplay.innerText = `FPS: ${Math.round(1000 / delta)}`;
-                lastFPS = timestamp;
-            }
+            camera.position.lerp(new THREE.Vector3(car.position.x, car.position.y + 5, car.position.z + 15), 0.1);
+            camera.lookAt(car.position.x, car.position.y, car.position.z);
 
             renderer.render(scene, camera);
-            lastRenderTime = timestamp;
             requestAnimationFrame(animate);
         }
 
