@@ -25,6 +25,8 @@
 
         function init() {
             scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB);
+
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
@@ -129,7 +131,7 @@
             switch (event.key) {
                 case "ArrowUp": moveForward = true; break;
                 case "ArrowDown": moveBackward = true; break;
-                case "ArrowLeft": turnLeft = true; break;
+                case "ArrowLeft": turnLeft = true; break; 
                 case "ArrowRight": turnRight = true; break;
             }
         }
@@ -144,14 +146,14 @@
         }
 
         function setupMobileControls() {
-            document.getElementById('forward').addEventListener('touchstart', () => moveForward = true);
-            document.getElementById('forward').addEventListener('touchend', () => moveForward = false);
-            document.getElementById('backward').addEventListener('touchstart', () => moveBackward = true);
-            document.getElementById('backward').addEventListener('touchend', () => moveBackward = false);
-            document.getElementById('left').addEventListener('touchstart', () => turnLeft = true);
-            document.getElementById('left').addEventListener('touchend', () => turnLeft = false);
-            document.getElementById('right').addEventListener('touchstart', () => turnRight = true);
-            document.getElementById('right').addEventListener('touchend', () => turnRight = false);
+            document.getElementById('forward').addEventListener('touchstart', (e) => { e.preventDefault(); moveForward = true; });
+            document.getElementById('forward').addEventListener('touchend', (e) => { e.preventDefault(); moveForward = false; });
+            document.getElementById('backward').addEventListener('touchstart', (e) => { e.preventDefault(); moveBackward = true; });
+            document.getElementById('backward').addEventListener('touchend', (e) => { e.preventDefault(); moveBackward = false; });
+            document.getElementById('left').addEventListener('touchstart', (e) => { e.preventDefault(); turnLeft = true; });
+            document.getElementById('left').addEventListener('touchend', (e) => { e.preventDefault(); turnLeft = false; });
+            document.getElementById('right').addEventListener('touchstart', (e) => { e.preventDefault(); turnRight = true; });
+            document.getElementById('right').addEventListener('touchend', (e) => { e.preventDefault(); turnRight = false; });
         }
 
         init();
