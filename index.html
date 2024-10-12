@@ -202,28 +202,19 @@
             lastRenderTime = time;
 
             if (moveForward) carSpeed = Math.min(carSpeed + acceleration, maxSpeed);
-            if (moveBackward) carSpeed = Math.max(carSpeed - deceleration, -maxSpeed);
-            if (!moveForward && !moveBackward) carSpeed = Math.sign(carSpeed) * Math.max(0, Math.abs(carSpeed) - friction);
+            if (moveBackward) carSpeed = Math.max(carSpeed - acceleration, -maxSpeed);
+            if (!moveForward && !moveBackward) carSpeed = Math.max(carSpeed - deceleration, 0);
+
             if (turnLeft) car.rotation.y += turnSpeed;
             if (turnRight) car.rotation.y -= turnSpeed;
 
-            car.translateZ(carSpeed);
-
-            camera.position.set(car.position.x, car.position.y + 5, car.position.z + 10);
-            camera.lookAt(car.position);
+            car.position.x += carSpeed * Math.sin(car.rotation.y);
+            car.position.z += carSpeed * Math.cos(car.rotation.y);
 
             updateChunks(car.position);
-            updateScoreAndHealth(delta);
 
             renderer.render(scene, camera);
             requestAnimationFrame(animate);
-        }
-
-        function updateScoreAndHealth(delta) {
-            score += delta * 10;
-            health -= delta * 1;
-            document.getElementById('score').textContent = `Score: ${Math.floor(score)}`;
-            document.getElementById('health').textContent = `Health: ${Math.floor(health)}`;
         }
 
         init();
