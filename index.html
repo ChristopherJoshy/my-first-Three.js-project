@@ -44,9 +44,9 @@
 
     <script>
         let scene, camera, renderer, car, chunks = {}, trees = [], obstacles = [];
-        let carSpeed = 0, maxSpeed = 5, turnSpeed = 0.05;
+        let carSpeed = 0, maxSpeed = 5, turnSpeed = 0.03;
         let moveForward = false, moveBackward = false, turnLeft = false, turnRight = false;
-        let acceleration = 0.1, deceleration = 0.1, friction = 0.01, chunkSize = 300;
+        let acceleration = 0.05, friction = 0.02, chunkSize = 300;
         let score = 0, health = 100, lastRenderTime = 0, lastFPS = 0;
         let fpsDisplay = document.getElementById('fps');
 
@@ -226,12 +226,15 @@
             if (!lastRenderTime) lastRenderTime = timestamp;
             let delta = timestamp - lastRenderTime;
 
-            // Car movement
+            // Car movement with proper controls
             if (moveForward && carSpeed < maxSpeed) carSpeed += acceleration;
             if (moveBackward && carSpeed > -maxSpeed / 2) carSpeed -= acceleration;
             if (!moveForward && !moveBackward) carSpeed *= 1 - friction;
 
+            // Apply car movement in the forward direction
             car.translateZ(carSpeed);
+
+            // Apply rotation for turning
             if (turnLeft) car.rotation.y += turnSpeed;
             if (turnRight) car.rotation.y -= turnSpeed;
 
