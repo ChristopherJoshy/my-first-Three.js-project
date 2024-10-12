@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CJ'sInfinite 3D Car World</title>
+    <title>CJ's Infinite 3D Car World</title>
     <style>
         body { margin: 0; overflow: hidden; }
         canvas { display: block; }
@@ -45,12 +45,12 @@
         let acceleration = 0.05, deceleration = 0.08, friction = 0.02, chunkSize = 200;
         let score = 0, health = 100;
         let lastRenderTime = 0;
+        const textureLoader = new THREE.TextureLoader();
 
         function init() {
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x87CEEB);  // Sky-blue background
+            scene.background = new THREE.Color(0x87CEEB);
 
-            // Camera setup with adjusted near/far clipping to avoid z-fighting
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             camera.position.set(0, 5, 10);
 
@@ -58,46 +58,41 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
 
-            // Lights
             const ambientLight = new THREE.AmbientLight(0x404040);
             scene.add(ambientLight);
             const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
             directionalLight.position.set(5, 10, 7.5);
             scene.add(directionalLight);
 
-            // Create Car
             car = createCar();
             car.position.set(0, 1, 0);
             scene.add(car);
 
-            // Add ground/terrain
             createTerrain();
 
-            // Add Event Listeners
             document.addEventListener('keydown', onKeyDown, false);
             document.addEventListener('keyup', onKeyUp, false);
             setupMobileControls();
             window.addEventListener('resize', onWindowResize, false);
 
-            // Generate initial chunks of the world
             updateChunks(car.position);
 
-            // Start animation loop
             requestAnimationFrame(animate);
         }
 
-        // Create simple car model
         function createCar() {
             const carGroup = new THREE.Group();
 
             const bodyGeometry = new THREE.BoxGeometry(2, 1, 4);
-            const bodyMaterial = new THREE.MeshPhongMaterial({ color: 0xff0000 });  // Red car body
+            const bodyTexture = textureLoader.load('https://example.com/car-texture.jpg');
+            const bodyMaterial = new THREE.MeshPhongMaterial({ map: bodyTexture });
             const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
             body.position.set(0, 0.5, 0);
             carGroup.add(body);
 
             const wheelGeometry = new THREE.CylinderGeometry(0.5, 0.5, 0.5, 16);
-            const wheelMaterial = new THREE.MeshPhongMaterial({ color: 0x000000 });  // Black wheels
+            const wheelTexture = textureLoader.load('https://example.com/wheel-texture.jpg');
+            const wheelMaterial = new THREE.MeshPhongMaterial({ map: wheelTexture });
             const positions = [[-1, 0.25, -1.5], [1, 0.25, -1.5], [-1, 0.25, 1.5], [1, 0.25, 1.5]];
             positions.forEach(pos => {
                 const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
@@ -109,10 +104,12 @@
             return carGroup;
         }
 
-        // Create a ground/terrain
         function createTerrain() {
             const geometry = new THREE.PlaneGeometry(10000, 10000); 
-            const material = new THREE.MeshPhongMaterial({ color: 0x228B22 });  
+            const groundTexture = textureLoader.load('https://example.com/ground-texture.jpg');
+            groundTexture.wrapS = groundTexture.wrapT = THREE.RepeatWrapping;
+            groundTexture.repeat.set(500, 500);
+            const material = new THREE.MeshPhongMaterial({ map: groundTexture });  
             const ground = new THREE.Mesh(geometry, material);
             ground.rotation.x = - Math.PI / 2;  
             ground.position.y = 0;  
@@ -138,14 +135,16 @@
         }
 
         function setupMobileControls() {
-            document.getElementById('forward').addEventListener('mousedown', () => moveForward = true);
-            document.getElementById('forward').addEventListener('mouseup', () => moveForward = false);
-            document.getElementById('backward').addEventListener('mousedown', () => moveBackward = true);
-            document.getElementById('backward').addEventListener('mouseup', () => moveBackward = false);
-            document.getElementById('left').addEventListener('mousedown', () => turnLeft = true);
-            document.getElementById('left').addEventListener('mouseup', () => turnLeft = false);
-            document.getElementById('right').addEventListener('mousedown', () => turnRight = true);
-            document.getElementById('right').addEventListener('mouseup', () => turnRight = false);
+            const mobileEvents = ['mousedown', 'touchstart'];
+            const stopEvents = ['mouseup', 'touchend'];
+            document.getElementById('forward').addEventListener(mobileEvents, () => moveForward = true);
+            document.getElementById('forward').addEventListener(stopEvents, () => moveForward = false);
+            document.getElementById('backward').addEventListener(mobileEvents, () => moveBackward = true);
+            document.getElementById('backward').addEventListener(stopEvents, () => moveBackward = false);
+            document.getElementById('left').addEventListener(mobileEvents, () => turnLeft = true);
+            document.getElementById('left').addEventListener(stopEvents, () => turnLeft = false);
+            document.getElementById('right').addEventListener(mobileEvents, () => turnRight = true);
+            document.getElementById('right').addEventListener(stopEvents, () => turnRight = false);
         }
 
         function onWindowResize() {
@@ -184,15 +183,15 @@
             const tree = new THREE.Group();
 
             const trunkGeometry = new THREE.CylinderGeometry(0.2, 0.2, 2, 16);
-            const trunkMaterial = new THREE.MeshPhongMaterial({ color: 0x8B4513 }); 
+            const trunkTexture = textureLoader.load('https://example.com/tree-trunk-texture.jpg');
+            const trunkMaterial = new THREE.MeshPhongMaterial({ map: trunkTexture });
             const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
-            trunk.position.set(0, 1, 0);
             tree.add(trunk);
 
             const foliageGeometry = new THREE.SphereGeometry(1, 16, 16);
-            const foliageMaterial = new THREE.MeshPhongMaterial({ color: 0x228B22 });  
+            const foliageMaterial = new THREE.MeshPhongMaterial({ color: 0x228B22 });
             const foliage = new THREE.Mesh(foliageGeometry, foliageMaterial);
-            foliage.position.set(0, 2, 0);
+            foliage.position.y = 1.5;
             tree.add(foliage);
 
             return tree;
@@ -203,24 +202,28 @@
             lastRenderTime = time;
 
             if (moveForward) carSpeed = Math.min(carSpeed + acceleration, maxSpeed);
-            else if (moveBackward) carSpeed = Math.max(carSpeed - acceleration, -maxSpeed);
-            else carSpeed = Math.abs(carSpeed) < friction ? 0 : carSpeed - Math.sign(carSpeed) * friction;
+            if (moveBackward) carSpeed = Math.max(carSpeed - deceleration, -maxSpeed);
+            if (!moveForward && !moveBackward) carSpeed = Math.sign(carSpeed) * Math.max(0, Math.abs(carSpeed) - friction);
+            if (turnLeft) car.rotation.y += turnSpeed;
+            if (turnRight) car.rotation.y -= turnSpeed;
 
-            if (turnLeft && carSpeed !== 0) car.rotation.y += turnSpeed * Math.sign(carSpeed);
-            if (turnRight && carSpeed !== 0) car.rotation.y -= turnSpeed * Math.sign(carSpeed);
+            car.translateZ(carSpeed);
 
-            car.position.x -= Math.sin(car.rotation.y) * carSpeed;
-            car.position.z -= Math.cos(car.rotation.y) * carSpeed;
-
-            
-            camera.position.x = car.position.x;
-            camera.position.z = car.position.z + 10; 
-            camera.position.y = car.position.y + 5; 
-            camera.lookAt(car.position); 
+            camera.position.set(car.position.x, car.position.y + 5, car.position.z + 10);
+            camera.lookAt(car.position);
 
             updateChunks(car.position);
+            updateScoreAndHealth(delta);
+
             renderer.render(scene, camera);
             requestAnimationFrame(animate);
+        }
+
+        function updateScoreAndHealth(delta) {
+            score += delta * 10;
+            health -= delta * 1;
+            document.getElementById('score').textContent = `Score: ${Math.floor(score)}`;
+            document.getElementById('health').textContent = `Health: ${Math.floor(health)}`;
         }
 
         init();
