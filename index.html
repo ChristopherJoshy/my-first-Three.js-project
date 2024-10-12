@@ -181,44 +181,6 @@
             scene.add(chunk);
         }
 
-        function onKeyDown(event) {
-            if (event.key === "ArrowUp") moveForward = true;
-            if (event.key === "ArrowDown") moveBackward = true;
-            if (event.key === "ArrowLeft") turnLeft = true;
-            if (event.key === "ArrowRight") turnRight = true;
-        }
-
-        function onKeyUp(event) {
-            if (event.key === "ArrowUp") moveForward = false;
-            if (event.key === "ArrowDown") moveBackward = false;
-            if (event.key === "ArrowLeft") turnLeft = false;
-            if (event.key === "ArrowRight") turnRight = false;
-        }
-
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-
-        function setupMobileControls() {
-            let forwardButton = document.getElementById('forward');
-            forwardButton.addEventListener('mousedown', () => moveForward = true);
-            forwardButton.addEventListener('mouseup', () => moveForward = false);
-
-            let backwardButton = document.getElementById('backward');
-            backwardButton.addEventListener('mousedown', () => moveBackward = true);
-            backwardButton.addEventListener('mouseup', () => moveBackward = false);
-
-            let leftButton = document.getElementById('left');
-            leftButton.addEventListener('mousedown', () => turnLeft = true);
-            leftButton.addEventListener('mouseup', () => turnLeft = false);
-
-            let rightButton = document.getElementById('right');
-            rightButton.addEventListener('mousedown', () => turnRight = true);
-            rightButton.addEventListener('mouseup', () => turnRight = false);
-        }
-
         function animate(time) {
             let delta = time - lastRenderTime;
             lastRenderTime = time;
@@ -253,6 +215,44 @@
 
             renderer.render(scene, camera);
             requestAnimationFrame(animate);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function onKeyDown(event) {
+            if (event.key === "ArrowUp") moveForward = true;
+            if (event.key === "ArrowDown") moveBackward = true;
+            if (event.key === "ArrowLeft") turnLeft = true;
+            if (event.key === "ArrowRight") turnRight = true;
+        }
+
+        function onKeyUp(event) {
+            if (event.key === "ArrowUp") moveForward = false;
+            if (event.key === "ArrowDown") moveBackward = false;
+            if (event.key === "ArrowLeft") turnLeft = false;
+            if (event.key === "ArrowRight") turnRight = false;
+        }
+
+        function setupMobileControls() {
+            let forwardButton = document.getElementById('forward');
+            forwardButton.addEventListener('mousedown', () => moveForward = true);
+            forwardButton.addEventListener('mouseup', () => moveForward = false);
+
+            let backwardButton = document.getElementById('backward');
+            backwardButton.addEventListener('mousedown', () => moveBackward = true);
+            backwardButton.addEventListener('mouseup', () => moveBackward = false);
+
+            let leftButton = document.getElementById('left');
+            leftButton.addEventListener('mousedown', () => turnLeft = true);
+            leftButton.addEventListener('mouseup', () => turnLeft = false);
+
+            let rightButton = document.getElementById('right');
+            rightButton.addEventListener('mousedown', () => turnRight = true);
+            rightButton.addEventListener('mouseup', () => turnRight = false);
         }
 
         init();
