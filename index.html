@@ -56,7 +56,7 @@
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x87CEEB);
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(car.position.x + carCameraOffset.x, car.position.y + carCameraOffset.y, car.position.z + carCameraOffset.z);
+            camera.position.set(0, 10, -20); // Initial camera position
 
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
@@ -236,7 +236,7 @@
             let delta = time - lastRenderTime;
             lastRenderTime = time;
 
-            if (delta > 1000) delta = 1000 / 60;  // Cap the delta for smooth FPS display
+            if (delta > 1000) delta = 1000 / 60;
 
             if (moveForward) carSpeed = Math.min(carSpeed + acceleration, maxSpeed);
             else if (moveBackward) carSpeed = Math.max(carSpeed - acceleration, -maxSpeed);
@@ -253,12 +253,10 @@
 
             updateChunks(car.position);
 
-            // FPS display
             let fps = Math.round(1000 / delta);
             fpsDisplay.textContent = `FPS: ${fps}`;
 
             renderer.render(scene, camera);
-
             requestAnimationFrame(animate);
         }
 
