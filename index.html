@@ -40,12 +40,14 @@
             const groundMaterial = new THREE.MeshPhongMaterial({ color: 0x808080 });
             const ground = new THREE.Mesh(groundGeometry, groundMaterial);
             ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
             scene.add(ground);
 
             const carGeometry = new THREE.BoxGeometry(2, 1, 4);
             const carMaterial = new THREE.MeshPhongMaterial({ color: 0x0000ff });
             car = new THREE.Mesh(carGeometry, carMaterial);
             car.position.y = 0.5;
+            car.castShadow = true;
             scene.add(car);
 
             for (let i = 0; i < 100; i++) {
@@ -53,6 +55,8 @@
                 const treeMaterial = new THREE.MeshPhongMaterial({ color: 0x00ff00 });
                 const tree = new THREE.Mesh(treeGeometry, treeMaterial);
                 tree.position.set(Math.random() * 1000 - 500, 2, Math.random() * 1000 - 500);
+                tree.castShadow = true;
+                tree.receiveShadow = true;
                 scene.add(tree);
                 treePositions.push(tree.position);
             }
@@ -62,9 +66,14 @@
                 const cubeMaterial = new THREE.MeshPhongMaterial({ color: 0xff0000 });
                 const cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
                 cube.position.set(Math.random() * 1000 - 500, 1, Math.random() * 1000 - 500);
+                cube.castShadow = true;
+                cube.receiveShadow = true;
                 scene.add(cube);
                 cubePositions.push(cube.position);
             }
+
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
             window.addEventListener('resize', onWindowResize, false);
             window.addEventListener('keydown', onKeyDown, false);
